@@ -1,11 +1,11 @@
 # Roadmap
 
 Estado: ⬜ pendiente · 🟡 en curso · ✅ terminado
-Etapa actual: **1**
+Etapa actual: **2**
 
 ## Fase de diseño (en el chat, sin código)
 
-### ⬜ Etapa 1 — Análisis y MVP
+### ✅ Etapa 1 — Análisis y MVP
 Resumen, MVP vs segunda versión, riesgos, decisiones pendientes.
 Resultado: preguntas abiertas de spec.md resueltas y MVP definido abajo.
 
@@ -53,7 +53,37 @@ Backend + MySQL con docker compose (si se confirma que aporta valor).
 README profesional, capturas, descripción para GitHub y CV, preparación para entrevista.
 
 ## MVP
-(se completa al terminar la Etapa 1)
+Objetivo: algo funcionando, deployado y mostrable. Nada de la segunda versión hasta tener la demo online.
+
+**Backend**
+- Perfumerías creadas por script SQL (Flyway), sin registro ni panel de superadmin (D-010).
+- Login de administrador con un único rol (ROLE_ADMIN). Cada usuario pertenece a una perfumería.
+- CRUD de productos, marcas, categorías y tipos de producto, siempre filtrado por la perfumería del usuario autenticado.
+- Configuración de la perfumería: nombre, logo, descripción, WhatsApp, Instagram, dirección, color principal, comportamiento del botón sin stock, título y descripción SEO.
+- Endpoints públicos por slug (D-004): datos de la perfumería, listado paginado con búsqueda por nombre, filtros (marca, categoría, género, rango de precio) y orden (precio, nombre), detalle de producto.
+- Subida de imágenes a un servicio externo (D-003); en MySQL solo la URL y su identificador.
+- Errores uniformes, Bean Validation, Swagger, tests de services y controllers, tests de aislamiento entre perfumerías.
+
+**Catálogo público**
+- Inicio de la perfumería, listado con filtros y paginación, página por categoría, detalle de producto.
+- "Sin stock" visible; botón de WhatsApp con mensaje armado y comportamiento configurable.
+- Renderizado en el servidor (D-001). SEO básico: título y meta description únicos, canonical, URLs estables, `noindex` en búsquedas y filtros, sitemap.xml, robots.txt, Open Graph.
+- Mobile-first, imágenes con proporción uniforme, texto alternativo y carga diferida.
+
+**Panel administrativo**
+- Login; listados y formularios de productos, marcas, categorías y tipos; cambio rápido de disponibilidad y precio; subida de imagen; configuración de la perfumería.
+
+**Infraestructura**
+- docker compose solo para MySQL local.
+- Deploy de una demo con 2 perfumerías de ejemplo para mostrar el multi-tenant.
 
 ## Segunda versión
-(se completa al terminar la Etapa 1)
+- Subdominios y dominios propios por perfumería, con redirecciones 301 desde la URL con slug.
+- Panel de superadmin para crear perfumerías y usuarios; más roles.
+- Variantes de un mismo perfume (varios ml en una misma ficha) (D-007).
+- Notas olfativas normalizadas y filtro por nota.
+- JSON-LD (Product, BreadcrumbList y LocalBusiness si hay datos); horarios.
+- Search Console y analítica configurables por perfumería.
+- Varias imágenes por producto, productos destacados, importación masiva por CSV.
+- Cantidad de stock si los clientes la piden (D-006); recuperación de contraseña; refresh tokens.
+- Caché de páginas públicas; respuesta 410 para productos eliminados.

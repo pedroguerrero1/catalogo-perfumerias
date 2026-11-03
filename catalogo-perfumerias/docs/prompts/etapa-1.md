@@ -14,4 +14,11 @@ Analizá el proyecto y entregame:
 8. Riesgos o problemas que veas en el planteamiento.
 9. Decisiones que tengo que tomar antes de empezar, con tu recomendación para cada una.
 
+10. Idioma: todo en español (explicaciones, docs, commits y código: clases, métodos, variables, tablas, columnas y endpoints).
+   Se mantienen en inglés solo los términos propios del framework y las convenciones de Java/Spring:
+   sufijos de capa (ProductoController, ProductoService, ProductoRepository, ProductoDTO),
+   prefijos get/set/is y métodos heredados (findById, save).
+   Ejemplos: entidad Producto, tabla productos, columna perfumeria_id, endpoint /api/productos,
+   método buscarPorCategoria(), commit "feat: agrega entidad Producto".
+
 Sé concreto. Cuando terminemos de discutirlo y lo apruebe, actualizá roadmap.md (secciones MVP y Segunda versión), spec.md (preguntas abiertas) y decisiones.md.

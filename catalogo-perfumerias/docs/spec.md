@@ -105,7 +105,10 @@ Evitar: diseño recargado, animaciones innecesarias, gradientes exagerados, much
 ## Fuera de alcance
 Microservicios, arquitectura enterprise innecesaria, funcionalidades que no aporten al producto, librerías o tecnologías agregadas para "parecer profesional".
 
-## Preguntas abiertas (se resuelven en la Etapa 1)
+## Preguntas abiertas (resueltas en la Etapa 1)
 - ¿Qué entra en el MVP y qué queda para una segunda versión?
+  → Definido en docs/roadmap.md, secciones "MVP" y "Segunda versión".
 - ¿Cómo se identifica la perfumería en el catálogo público: slug en la URL, subdominio o dominio propio?
+  → Slug en la ruta: `/{slug}/productos/{producto}` (D-004).
 - ¿Los dominios propios por cliente son parte del MVP?
+  → No. Subdominios y dominios propios quedan para la segunda versión (D-004).

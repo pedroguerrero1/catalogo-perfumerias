@@ -130,3 +130,38 @@ Formato:
   - `io.jsonwebtoken:jjwt` — generar y validar JWT (D-002).
   - `com.cloudinary:cloudinary-http5` — subir y borrar imágenes en Cloudinary (D-003).
 - **Por qué**: cada una resuelve una decisión ya tomada y evita implementar a mano criptografía o un cliente HTTP.
+
+## D-013 — Aislamiento de las relaciones entre tablas de una perfumería
+- **Estado**: decidida (Etapa 3)
+- **Contexto**: un producto referencia marca, categoría y tipo. Una FK simple (`marca_id → marcas.id`) no impide que apunte a una marca de otra perfumería.
+- **Alternativas**:
+  1. Validación en el service: buscar cada relación con `findByIdAndPerfumeriaId` y responder 404 si no pertenece a la perfumería del usuario. Simple de mapear en JPA; depende de que el service lo haga siempre.
+  2. FK compuesta `(marca_id, perfumeria_id) → marcas(id, perfumeria_id)`. La base lo garantiza; en JPA obliga a mapear `perfumeria_id` dos veces con `insertable = false, updatable = false`, confuso de mantener.
+- **Decisión**: opción 1, cubierta por los tests de aislamiento de cada service.
+- **Por qué**: la regla multi-tenant ya exige que todo service filtre por perfumería; la validación es la misma consulta que se usa en el resto del CRUD. La FK compuesta sumaría una segunda barrera con un mapeo difícil de explicar.
+
+## D-014 — Slugs de producto y categoría
+- **Estado**: decidida (Etapa 3)
+- **Contexto**: las URLs públicas (`/{slug}/productos/{producto}`, `/{slug}/categorias/{categoria}`) tienen que ser claras y estables para el SEO.
+- **Alternativas**:
+  1. Slug fijo: se genera al crear y no cambia al editar. URLs estables; puede quedar desactualizado si cambia mucho el nombre.
+  2. Slug que se regenera al editar el nombre. Siempre coincide con el nombre; cambia la URL y se pierde la página indexada sin redirecciones 301.
+- **Decisión**: opción 1. El backend lo genera desde el nombre (ej. `dior-sauvage-edp-100ml`), único por perfumería (`UNIQUE (perfumeria_id, slug)`), con sufijo `-2`, `-3`… si ya existe.
+- **Por qué**: una URL que cambia rompe enlaces compartidos y resultados de Google; las redirecciones 301 quedan para la segunda versión.
+
+## D-015 — Convenciones de la base de datos
+- **Estado**: decidida (Etapa 3)
+- **Decisión**:
+  - Enums (género, rol, comportamiento sin stock) como `VARCHAR` + `CHECK`, mapeados con `@Enumerated(EnumType.STRING)`.
+  - Precio en `DECIMAL(12,2)`, sin columna de moneda.
+  - Collation `utf8mb4_0900_ai_ci`.
+  - Todas las FK con `ON DELETE RESTRICT`.
+  - Email de usuario único en todo el sistema.
+  - Comportamiento sin stock configurable por perfumería: `DESHABILITAR_BOTON` (default) o `MOSTRAR_BOTON`.
+- **Por qué**:
+  - El `ENUM` nativo de MySQL exige `ALTER TABLE` para sumar valores, y `ORDINAL` se rompe si cambia el orden del enum en Java.
+  - `DOUBLE` redondea mal el dinero.
+  - `ai_ci` hace que la búsqueda y la unicidad no distingan tildes ni mayúsculas ("cafe" = "Café", "Dior" = "dior").
+  - `RESTRICT` es la última barrera si el service no detecta el 409 de D-009.
+  - El login recibe solo email y contraseña, así que el email tiene que identificar a un único usuario.
+  - Por defecto el botón se deshabilita sin stock para concentrar las consultas en lo que se puede vender; queda configurable porque otra perfumería puede preferir recibirlas igual.

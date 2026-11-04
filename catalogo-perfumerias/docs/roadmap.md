@@ -1,7 +1,7 @@
 # Roadmap
 
 Estado: ⬜ pendiente · 🟡 en curso · ✅ terminado
-Etapa actual: **3**
+Etapa actual: **4**
 
 ## Fase de diseño (en el chat, sin código)
 
@@ -13,7 +13,7 @@ Resultado: preguntas abiertas de spec.md resueltas y MVP definido abajo.
 Arquitectura general, estructura de carpetas, decisión de frontend por SEO (D-001), JWT vs sesión, servicio de imágenes.
 Resultado: entradas en decisiones.md.
 
-### ⬜ Etapa 3 — Modelo de datos
+### ✅ Etapa 3 — Modelo de datos
 Entidades, atributos, relaciones, cardinalidades, PK, FK, restricciones, esquema relacional y SQL inicial.
 Resultado: docs/modelo-datos.md.
 

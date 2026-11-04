@@ -1,7 +1,7 @@
 # Roadmap
 
 Estado: ⬜ pendiente · 🟡 en curso · ✅ terminado
-Etapa actual: **2**
+Etapa actual: **3**
 
 ## Fase de diseño (en el chat, sin código)
 
@@ -9,7 +9,7 @@ Etapa actual: **2**
 Resumen, MVP vs segunda versión, riesgos, decisiones pendientes.
 Resultado: preguntas abiertas de spec.md resueltas y MVP definido abajo.
 
-### ⬜ Etapa 2 — Arquitectura y decisiones
+### ✅ Etapa 2 — Arquitectura y decisiones
 Arquitectura general, estructura de carpetas, decisión de frontend por SEO (D-001), JWT vs sesión, servicio de imágenes.
 Resultado: entradas en decisiones.md.
 
@@ -33,7 +33,7 @@ Controllers + tests, manejo global de errores, Swagger.
 Spring Security, login, roles, JWT si corresponde, aislamiento por perfumería + tests de aislamiento.
 
 ### ⬜ Etapa 8 — Base del frontend
-Proyecto frontend (según D-001), arquitectura, routing, servicios de API.
+Proyecto Next.js (D-001), arquitectura, routing, servicios de API.
 
 ### ⬜ Etapa 9 — Catálogo público
 Listado, filtros, búsqueda, paginación, detalle, SEO básico por página.

@@ -15,23 +15,49 @@ Formato:
 ---
 
 ## D-001 — Tecnología del frontend público y SEO
-- **Estado**: pendiente (Etapa 2)
+- **Estado**: decidida (Etapa 2)
 - **Contexto**: el SEO es parte del producto y los buscadores deben ver el contenido de productos y categorías sin depender de JavaScript. Una SPA con React + Vite no lo resuelve sola.
 - **Alternativas**:
   1. Next.js para el catálogo público + Spring Boot como API. Mejor SEO; suma una tecnología nueva.
   2. React + Vite con prerenderizado de páginas públicas. Más simple; limitado si el catálogo cambia seguido.
   3. Spring Boot renderiza el catálogo público (Thymeleaf) y React solo para el panel admin. Aprovecha Java; menos común.
-- **Recomendación (Etapa 1)**: opción 1, Next.js (App Router) con JavaScript, una sola app para catálogo público y panel admin. Uso simple: páginas públicas renderizadas en el servidor que llaman a la API, render dinámico (sin ISR ni Server Actions en el MVP), admin como componentes cliente. Se descarta la opción 2 porque el catálogo cambia seguido y es multi-tenant (habría que reconstruir en cada cambio), y la 3 porque deja dos tecnologías de frontend.
-- **Decisión**: —
-- **Por qué**: —
+- **Decisión**: opción 1. Next.js (App Router) con JavaScript, una sola app en `frontend/` para catálogo público y panel admin.
+  - Catálogo público: Server Components que llaman a la API de Spring (URL por variable de entorno) y devuelven HTML completo. Título, descripción, sitemap y robots con las funciones del framework. Render dinámico, sin ISR ni Server Actions en el MVP.
+  - Panel admin: componentes cliente (`"use client"`) que llaman a la API desde el navegador con el token.
+  - Next no tiene lógica de negocio: solo muestra datos y arma URLs.
+- **Por qué**: el renderizado en el servidor resuelve el SEO sin trucos y es React, que iba a usar igual. Una sola tecnología de frontend. La opción 2 no sirve porque el catálogo cambia seguido y es multi-tenant (habría que reconstruir en cada cambio); la 3 deja dos frontends distintos.
 
 ## D-002 — Autenticación: JWT o sesión
-- **Estado**: pendiente (Etapa 2)
-- **Recomendación (Etapa 1)**: JWT (Bearer), porque frontend y API van en dominios distintos y las cookies de sesión cross-site complican CORS y SameSite.
+- **Estado**: decidida (Etapa 2)
+- **Contexto**: el panel admin necesita login, y frontend y API se deployan en dominios distintos.
+- **Alternativas**:
+  1. JWT en header `Authorization: Bearer`. Sin estado en el servidor y simple entre dominios; no se puede revocar antes de que venza.
+  2. Sesión con cookie `JSESSIONID`. Revocación inmediata; entre dominios exige CORS con credenciales, `SameSite=None` y CSRF, y guarda estado en el servidor.
+- **Decisión**: JWT firmado con HS256, con la librería jjwt y un filtro propio. Vence a las 8 h, sin refresh token en el MVP. El frontend lo guarda en `localStorage`.
+- **Cómo funciona**:
+  1. `POST /api/auth/login` con email y contraseña; Spring Security compara contra el hash BCrypt.
+  2. Si es correcta, se genera un JWT con `sub` = id de usuario y vencimiento; la clave secreta sale de una variable de entorno.
+  3. El frontend manda el token en cada request: `Authorization: Bearer <token>`.
+  4. `JwtFiltro` verifica firma y vencimiento, carga el usuario desde la base (rechaza usuarios desactivados) y lo registra en el `SecurityContext`.
+  5. `SecurityConfig`: `/api/auth/login` y `/api/publico/**` abiertos; `/api/admin/**` exige `ROLE_ADMIN`; sin token o con token inválido → 401.
+  6. Los services obtienen la perfumería del usuario autenticado (`UsuarioActual.getPerfumeriaId()`), nunca de la URL ni del body.
+  7. El layout de `/admin` redirige al login si no hay token. Es solo comodidad: la seguridad está en el backend.
+- **Por qué**: con dominios distintos un header es mucho más simple que cookies entre sitios. Cargar el usuario en cada request mitiga la falta de revocación. jjwt con filtro propio se puede explicar línea por línea, a diferencia de `oauth2-resource-server`, que resuelve casi todo por configuración. El riesgo de `localStorage` es XSS: React escapa el contenido y no se usa `dangerouslySetInnerHTML`. Una cookie httpOnly gestionada por Next queda para la segunda versión.
 
 ## D-003 — Servicio de imágenes
-- **Estado**: pendiente (Etapa 2)
-- **Recomendación (Etapa 1)**: Cloudinary, porque recorta, redimensiona y convierte a WebP desde la URL (proporción uniforme y optimización) y su plan gratuito alcanza.
+- **Estado**: decidida (Etapa 2)
+- **Contexto**: MySQL guarda solo la URL; las imágenes tienen que verse uniformes y optimizadas aunque las originales tengan distintas proporciones.
+- **Alternativas**:
+  1. Cloudinary. Transforma desde la URL (recorte, tamaño, WebP/AVIF, calidad) con CDN; plan gratuito suficiente. Es un servicio externo más.
+  2. Firebase Storage. Gratis al principio; no transforma y trae el ecosistema Firebase para una sola función.
+  3. AWS S3. Estándar; no transforma, e IAM y facturación son complejos para este proyecto.
+  4. Disco del servidor. Sin servicios externos; en hostings gratuitos el disco se borra en cada deploy.
+- **Decisión**: Cloudinary con el SDK oficial (`com.cloudinary:cloudinary-http5`) y subida a través del backend:
+  1. El admin sube el archivo a `POST /api/admin/productos/{id}/imagen`.
+  2. El backend valida tipo (jpg, png, webp) y tamaño (máximo 5 MB) y lo sube con la clave secreta (variable de entorno).
+  3. Guarda `imagen_url` e `imagen_id`; si había una imagen anterior, la borra de Cloudinary.
+  4. El frontend pide la imagen con transformación en la URL, por ejemplo `c_fill,ar_1:1,w_600,f_auto,q_auto`.
+- **Por qué**: las transformaciones por URL resuelven la proporción uniforme y la optimización sin código propio. Subir a través del backend mantiene la clave secreta en el servidor. La subida directa desde el navegador con firma queda para más adelante.
 
 ## D-004 — Cómo se identifica la perfumería en el catálogo público
 - **Estado**: decidida (Etapa 1)
@@ -96,3 +122,11 @@ Formato:
 - **Alternativas**: monorepo o un repositorio para backend y otro para frontend.
 - **Decisión**: monorepo con `backend/`, `frontend/` y `docs/`.
 - **Por qué**: un solo historial muestra la evolución completa del proyecto, y la documentación queda junto a ambos.
+
+## D-012 — Dependencias aprobadas
+- **Estado**: decidida (Etapa 2)
+- **Contexto**: no se agregan dependencias sin aprobación explícita. Este es el registro de las aprobadas fuera del stack base.
+- **Decisión**:
+  - `io.jsonwebtoken:jjwt` — generar y validar JWT (D-002).
+  - `com.cloudinary:cloudinary-http5` — subir y borrar imágenes en Cloudinary (D-003).
+- **Por qué**: cada una resuelve una decisión ya tomada y evita implementar a mano criptografía o un cliente HTTP.

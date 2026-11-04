@@ -6,8 +6,15 @@ Es un producto reutilizable para clientes reales y el proyecto principal de mi p
 ## Stack
 - Backend: Java, Spring Boot, Spring Web, Spring Data JPA (Hibernate), Bean Validation, Spring Security, Maven
 - Base de datos: MySQL, migraciones con Flyway
-- Frontend: React + Vite + JavaScript, React Router — PENDIENTE de confirmar por SEO (ver docs/decisiones.md, D-001)
+- Frontend: Next.js (App Router) + JavaScript (D-001)
+- Autenticación: JWT con jjwt y filtro propio (D-002)
+- Imágenes: Cloudinary (D-003)
 - Documentación de API: Swagger / OpenAPI (springdoc)
+
+## Idioma (D-005)
+Todo en español: explicaciones, docs, commits y código (clases, métodos, variables, tablas, columnas, endpoints).
+En inglés solo lo propio del framework y las convenciones de Java/Spring: sufijos de capa (ProductoController, ProductoService, ProductoRepository, ProductoDTO), prefijos get/set/is y métodos heredados o derivados (findById, save, findByPerfumeriaId).
+Ejemplos: entidad Producto, tabla productos, columna perfumeria_id, endpoint /api/productos, método buscarPorCategoria(), commit "feat: agrega entidad Producto".
 
 ## Documentación del proyecto
 Antes de proponer cambios, leé los documentos que apliquen a la tarea:
@@ -34,7 +41,8 @@ No crear paquetes ni capas que no tengan una responsabilidad real.
 - El aislamiento se garantiza en el backend. El frontend nunca es la barrera de seguridad.
 
 ## Arquitectura frontend
-src/: components, pages, services (llamadas a la API), hooks, context, utils, styles.
+src/: app (rutas de Next.js, equivale a pages), components, services (llamadas a la API), hooks, context, utils, styles.
+Catálogo público con componentes de servidor (SEO); panel admin con componentes cliente.
 Componentes chicos y con una responsabilidad. Nada hardcodeado: productos, WhatsApp y configuración vienen de la API.
 
 ## Prohibido

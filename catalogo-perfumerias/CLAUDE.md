@@ -9,6 +9,7 @@ Es un producto reutilizable para clientes reales y el proyecto principal de mi p
 - Frontend: Next.js (App Router) + JavaScript (D-001)
 - Autenticación: JWT con jjwt y filtro propio (D-002)
 - Imágenes: Cloudinary (D-003)
+- Pagos: Mercado Pago Checkout Pro con el SDK oficial de Java (D-016, D-018)
 - Documentación de API: Swagger / OpenAPI (springdoc)
 
 ## Idioma (D-005)
@@ -39,6 +40,13 @@ No crear paquetes ni capas que no tengan una responsabilidad real.
 - Pedir un recurso de otra perfumería responde 404 (no revelar que existe).
 - Cada service que maneja datos de una perfumería tiene tests que verifican el aislamiento entre perfumerías.
 - El aislamiento se garantiza en el backend. El frontend nunca es la barrera de seguridad.
+
+## Pagos (regla crítica)
+- El precio y el total se calculan en el backend desde la base. Nunca se confía en el precio que manda el frontend.
+- El access token de Mercado Pago vive solo en el backend (variable de entorno o configuración cifrada). Nunca en Next.
+- Un pedido se marca como pagado SOLO cuando lo confirma el webhook de Mercado Pago, consultando el pago a su API. La página de "pago exitoso" no confirma nada.
+- El webhook es idempotente: si llega dos veces, el pedido no se procesa dos veces.
+- Usamos Checkout Pro: el cliente paga en Mercado Pago, nunca manejamos datos de tarjeta.
 
 ## Arquitectura frontend
 src/: app (rutas de Next.js, equivale a pages), components, services (llamadas a la API), hooks, context, utils, styles.

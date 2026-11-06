@@ -6,8 +6,10 @@
 
 No es una página visualmente bonita: es una aplicación real.
 
+**Primer cliente real**: una perfumería con un catálogo en Firebase y venta por WhatsApp. Pasa a esta plataforma con carrito y pago online con Mercado Pago. Su sitio actual sigue funcionando hasta la migración (ver docs/roadmap.md).
+
 ## Usuarios
-- **Cliente final**: navega el catálogo público sin iniciar sesión.
+- **Cliente final**: navega el catálogo público y compra sin iniciar sesión.
 - **Administrador de perfumería**: gestiona los datos de SU perfumería desde un panel privado.
 - (Futuro) otros roles. La arquitectura debe permitir agregarlos.
 
@@ -26,6 +28,7 @@ Nombre, logo, colores principales, descripción, WhatsApp, Instagram, dirección
 - Navegación por categorías
 - Detalle de producto
 - Botón "Consultar por WhatsApp"
+- Botón "Agregar al carrito" y carrito (ver "Carrito, pedidos y pagos")
 - Diseño responsive, pensado primero para celulares
 
 ## Productos
@@ -36,16 +39,43 @@ Campos mínimos: nombre, marca, categoría, género, mililitros, tipo de product
 - Tipos: EDP, EDT, Extrait de parfum, Body Splash, Decant. Deben poder agregarse nuevos valores.
 
 ## Stock
-- El admin controla si un producto está disponible.
-- Sin stock: se muestra claramente "Sin stock" y nunca como disponible.
+- El stock es una cantidad de unidades por producto (D-017). El admin la carga y la corrige.
+- Sin stock (`0`): se muestra claramente "Sin stock", nunca como disponible, y no se puede agregar al carrito.
+- El stock se descuenta solo cuando Mercado Pago confirma el pago. Los pedidos por WhatsApp no lo tocan.
 - El comportamiento del botón de WhatsApp sin stock es configurable.
 - No se eliminan físicamente productos por quedarse sin stock (estado activo/inactivo + stock).
-- Analizar ventajas y desventajas de las alternativas antes de implementar.
+
+## Carrito, pedidos y pagos
+Decisiones en D-016, D-017 y D-018. Modelo y flujo en docs/modelo-datos.md.
+
+**Carrito**
+- Vive en el navegador: productos y cantidades. Se conserva al recargar la página.
+- No se puede pedir más cantidad que el stock disponible.
+- Dos formas de terminar la compra:
+  - **Pagar con Mercado Pago**: solo si la perfumería tiene Mercado Pago configurado y activo.
+  - **Enviar pedido por WhatsApp**: arma un mensaje con productos, cantidades y total. No crea un pedido ni descuenta stock.
+
+**Checkout con Mercado Pago (Checkout Pro)**
+- El comprador completa nombre, email, teléfono y forma de entrega (retiro o envío; si es envío, dirección). No necesita cuenta.
+- El backend crea el pedido con precios y stock de la base y lo redirige a Mercado Pago. El sitio nunca maneja datos de tarjeta.
+- No se ofrecen medios de pago en efectivo.
+- El pedido vence a los 30 minutos sin pago.
+- El envío no se cobra en el sitio: se coordina con el cliente por WhatsApp. Después del pago se muestra un botón "Coordinar entrega por WhatsApp" con el código del pedido.
+- El pedido queda pagado solo cuando el webhook de Mercado Pago lo confirma. La página de retorno solo muestra el estado.
+- Página pública del pedido por código: estado, productos y total. Nunca datos personales del comprador.
+
+**Estados del pedido**: pendiente de pago, pagado, requiere revisión (pago aprobado sin stock suficiente o con monto distinto), entregado, vencido, cancelado, reembolsado.
+
+**Panel administrativo: pedidos**
+- Listado filtrable por estado y fecha; detalle con comprador, entrega, productos y pagos.
+- Marcar como entregado, cancelar un pedido pendiente, resolver pedidos en revisión y marcar como reembolsado (el reembolso se hace en Mercado Pago).
+- Configurar las credenciales de Mercado Pago de la perfumería (access token, secreto del webhook, modo prueba o producción, activo). Nunca se vuelven a mostrar después de guardarlas.
 
 ## Panel administrativo
-- **Productos**: crear, editar, eliminar, activar/desactivar, modificar stock y precio, subir/cambiar imagen, asignar marca, categoría y género.
+- **Productos**: crear, editar, eliminar, activar/desactivar, modificar stock y precio, subir/cambiar imagen, asignar marca, categoría y género. Un producto con pedidos no se elimina: se desactiva.
 - **Marcas**: crear, editar, eliminar, listar.
 - **Categorías**: crear, editar, eliminar, listar.
+- **Pedidos y Mercado Pago**: ver "Carrito, pedidos y pagos".
 - **Configuración de la perfumería**: nombre, logo, WhatsApp, Instagram, dirección, descripción, colores.
 
 ## Autenticación y autorización
@@ -67,7 +97,15 @@ Campos mínimos: nombre, marca, categoría, género, mililitros, tipo de product
 
 ## WhatsApp
 - Mensaje generado automáticamente con datos del producto. Ejemplo: "Hola, quisiera consultar por [producto], [ml], precio $XXX."
+- Pedido desde el carrito: lista de productos con ml, cantidad y precio, más el total.
+- Coordinar entrega después de pagar: mensaje con el código del pedido.
 - El número sale de la configuración de la perfumería, nunca hardcodeado en el frontend.
+
+## Migración del primer cliente
+- Importar productos, marcas, categorías e imágenes desde el Firebase actual con un script único (Firebase solo como origen; nunca como base de datos principal).
+- Stock: no disponible → 0; disponible → cantidad del conteo que haga el cliente, o 1 si no hay dato (D-017).
+- Probar el pago completo en modo prueba antes de activar el modo producción.
+- El sitio actual sigue funcionando hasta que el nuevo esté probado en producción.
 
 ## Imágenes
 - No se guardan imágenes en MySQL: solo URL/referencia.
@@ -112,3 +150,6 @@ Microservicios, arquitectura enterprise innecesaria, funcionalidades que no apor
   → Slug en la ruta: `/{slug}/productos/{producto}` (D-004).
 - ¿Los dominios propios por cliente son parte del MVP?
   → No. Subdominios y dominios propios quedan para la segunda versión (D-004).
+
+## Preguntas abiertas
+- ¿El primer cliente necesita su propio dominio al migrar? Si ya tiene uno y su sitio actual está posicionado en Google, el dominio propio (hoy en la segunda versión, D-004) podría tener que adelantarse a la etapa de migración.

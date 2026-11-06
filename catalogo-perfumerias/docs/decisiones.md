@@ -80,7 +80,7 @@ Formato:
 - **Ejemplos**: entidad Producto, tabla productos, columna perfumeria_id, endpoint /api/productos, commit "feat: agrega entidad Producto".
 
 ## D-006 — Modelo de stock
-- **Estado**: decidida (Etapa 1)
+- **Estado**: reemplazada por D-017 (con pagos online hace falta cantidad para descontar)
 - **Contexto**: el admin tiene que poder indicar si un producto está disponible, y nunca debe mostrarse como disponible algo que no lo está.
 - **Alternativas**:
   1. Cantidad entera. Más información; si no se actualiza en cada venta, muestra como disponible algo agotado.
@@ -110,7 +110,8 @@ Formato:
   1. Borrado lógico (marca de eliminado). Recuperable; obliga a filtrar en todas las consultas.
   2. Borrado físico cuando el admin elimina, más `activo` para ocultar. Simple.
 - **Decisión**: borrado físico solo cuando el admin elimina; `activo = false` para ocultar; sin stock sigue visible con "Sin stock". Público: inactivo o eliminado → 404; agotado → 200. Eliminar una marca o categoría con productos → 409.
-- **Por qué**: `activo` ya cubre el caso de ocultar sin perder datos, así que el borrado lógico sería una segunda forma de hacer lo mismo.
+- **Actualización (D-016)**: eliminar un producto que aparece en algún pedido → 409. Para sacarlo del catálogo se usa `activo = false`.
+- **Por qué**: `activo` ya cubre el caso de ocultar sin perder datos, así que el borrado lógico sería una segunda forma de hacer lo mismo. Un pedido es un registro de venta: borrar su producto rompería el historial.
 
 ## D-010 — Alta de perfumerías
 - **Estado**: decidida (Etapa 1)
@@ -129,6 +130,7 @@ Formato:
 - **Decisión**:
   - `io.jsonwebtoken:jjwt` — generar y validar JWT (D-002).
   - `com.cloudinary:cloudinary-http5` — subir y borrar imágenes en Cloudinary (D-003).
+  - `com.mercadopago:sdk-java` — crear preferencias de Checkout Pro y consultar pagos (D-016).
 - **Por qué**: cada una resuelve una decisión ya tomada y evita implementar a mano criptografía o un cliente HTTP.
 
 ## D-013 — Aislamiento de las relaciones entre tablas de una perfumería
@@ -165,3 +167,39 @@ Formato:
   - `RESTRICT` es la última barrera si el service no detecta el 409 de D-009.
   - El login recibe solo email y contraseña, así que el email tiene que identificar a un único usuario.
   - Por defecto el botón se deshabilita sin stock para concentrar las consultas en lo que se puede vender; queda configurable porque otra perfumería puede preferir recibirlas igual.
+
+## D-016 — Carrito, pedidos y pagos online con Mercado Pago
+- **Estado**: decidida (antes de la Etapa 4)
+- **Contexto**: el proyecto tiene su primer cliente real: una perfumería con un catálogo en Firebase y venta por WhatsApp, que quiere carrito y pago online. Muchos de sus clientes son de la zona y compran por WhatsApp; los envíos se coordinan con cada cliente.
+- **Alternativas**:
+  1. *Integración de pago*: Checkout Pro (redirige a Mercado Pago) o Checkout API/Bricks (formulario de tarjeta en el sitio). Checkout API da más control visual, pero los datos de tarjeta pasan por el sitio y aumenta la responsabilidad de seguridad.
+  2. *Carrito*: en el navegador (`localStorage`) o en una tabla del servidor. La tabla solo sirve para carritos abandonados o multi-dispositivo, y sin cuentas de cliente no aporta.
+  3. *WhatsApp*: reemplazarlo por el pago online o mantener los dos canales.
+- **Decisión**:
+  - Checkout Pro con el SDK oficial de Java (D-012). Sin medios de pago en efectivo.
+  - Carrito en el navegador. Al confirmar, el backend recibe solo `productoId` + `cantidad`, toma precios y stock de la base y crea el pedido.
+  - Compra sin cuenta: nombre, email, teléfono, retiro o envío y dirección quedan en el pedido. El envío no se cobra en el sitio: se coordina por WhatsApp.
+  - El pedido vence a los 30 minutos sin pago.
+  - Conviven los dos canales: el carrito tiene "Pagar con Mercado Pago" y "Enviar pedido por WhatsApp". El de WhatsApp arma un mensaje y no guarda nada ni toca el stock, como el sitio actual. Si la perfumería no tiene Mercado Pago configurado, solo aparece WhatsApp.
+  - El pedido se marca pagado solo por el webhook, consultando el pago a la API de Mercado Pago; el webhook es idempotente (`mp_pago_id` único + transición de estado con el pedido bloqueado).
+- **Por qué**: Checkout Pro deja los datos de tarjeta fuera del sistema y es lo más simple de integrar y explicar. El carrito en el navegador evita una tabla que no resuelve nada, y recalcular en el backend cierra la puerta a precios manipulados. Mantener WhatsApp conserva el canal que hoy le funciona al cliente con la gente de la zona. Se excluye el efectivo porque se acredita horas o días después, cuando el pedido ya venció.
+
+## D-017 — Stock por cantidad y descuento al confirmar el pago
+- **Estado**: decidida (antes de la Etapa 4). Reemplaza a D-006.
+- **Contexto**: con pagos online no alcanza un sí/no: hay que saber si quedan unidades y descontarlas al vender.
+- **Alternativas**:
+  1. Reservar stock al crear el pedido y devolverlo si vence. No hay sobreventa; necesita una tarea que libere reservas y los carritos abandonados bloquean stock 30 minutos.
+  2. Descontar al confirmarse el pago. Más simple; entre la creación y el pago otro comprador puede llevarse la última unidad.
+- **Decisión**: opción 2. `productos.stock INT UNSIGNED`; "Sin stock" es `stock = 0`. Al crear el pedido se valida que haya stock, pero no se descuenta. Al aprobarse el pago, con el pedido y los productos bloqueados, se descuenta todo o nada. Si no alcanza o el monto no coincide, el pedido queda `REQUIERE_REVISION` para que el admin reembolse o consiga el producto. Un reembolso no devuelve stock automáticamente.
+- **Migración del cliente**: hoy solo tiene disponible/no disponible. No disponible → `stock = 0`; disponible → la cantidad que informe el cliente en un conteo antes de salir en vivo, o `stock = 1` si no hay dato (nunca se vende más de una unidad sin que el admin lo confirme).
+- **Por qué**: con el volumen de una perfumería, la sobreventa es rara, y el caso queda visible en lugar de perderse. La reserva sumaría una tarea programada y estados intermedios para un problema que casi no ocurre. Los decants tienen su propio stock (D-007) y el admin lo ajusta al abrir o terminar un frasco.
+
+## D-018 — Credenciales de Mercado Pago por perfumería
+- **Estado**: decidida (antes de la Etapa 4)
+- **Contexto**: cada perfumería cobra en su propia cuenta de Mercado Pago, así que la plataforma necesita guardar un access token y un secreto de webhook por perfumería, sin que se filtren.
+- **Alternativas**:
+  1. El admin carga el access token y el secreto de su aplicación de Mercado Pago; se guardan cifrados. Simple; el admin tiene que crear la aplicación en Mercado Pago (lo hacemos nosotros en la puesta en marcha).
+  2. OAuth de Mercado Pago (modo marketplace): la perfumería conecta su cuenta con un clic. Mejor experiencia; suma flujo OAuth, renovación de tokens y registro como marketplace.
+  3. Variables de entorno por perfumería. No escala: cada cliente nuevo exige redeployar.
+- **Decisión**: opción 1. Tabla `credenciales_mercadopago` (1 a 1 con perfumería), separada de `perfumerias`. Token y secreto cifrados con AES-GCM (`javax.crypto`, sin dependencias) con una clave de variable de entorno. La API nunca los devuelve: solo "configurado sí/no" y el modo (`PRUEBA` o `PRODUCCION`). El webhook lleva el id de la perfumería en la URL para saber qué credenciales usar; la firma y la búsqueda del pedido por perfumería impiden mezclar datos.
+- **Por qué**: si alguien obtiene un dump de la base, no obtiene los tokens. La tabla aparte evita que un error de mapeo exponga secretos en un DTO público. OAuth queda para la segunda versión, cuando haya varios clientes cobrando.
